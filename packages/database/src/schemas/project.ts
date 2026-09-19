@@ -22,6 +22,7 @@ import { softDeleteColumns, timestamps, timestamptz } from './_helpers';
 import { agents } from './agent';
 import { chatGroups } from './chatGroup';
 import { devices } from './device';
+import { environmentInstances } from './environmentInstance';
 import { knowledgeBases } from './file';
 import { users } from './user';
 import { workspaces } from './workspace';
@@ -109,14 +110,19 @@ export const projectWorkingDirectories = pgTable(
     projectId: text('project_id')
       .references(() => projects.id, { onDelete: 'cascade' })
       .notNull(),
-    /** Nullable so a removed device leaves a repairable binding with its last-known path. */
+    /** Canonical execution location once bound; legacy rows carry only device/path until the backfill runs. */
+    environmentInstanceId: uuid('environment_instance_id').references(
+      () => environmentInstances.id,
+      { onDelete: 'restrict' },
+    ),
+    /** @deprecated Read from the environment instance; dropped by the contract migration after the backfill. */
     deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'set null' }),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
     addedByUserId: text('added_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
 
-    /** Absolute path on the bound device, for example /Users/name/Code/lobehub. */
+    /** @deprecated Read from the environment instance; dropped by the contract migration after the backfill. */
     path: text('path').notNull(),
     /** User-facing label; defaults to the final path segment at the application boundary. */
     name: varchar('name', { length: 255 }).notNull(),
@@ -134,6 +140,10 @@ export const projectWorkingDirectories = pgTable(
       t.projectId,
       t.deviceId,
       t.path,
+    ),
+    uniqueIndex('project_working_directories_project_instance_unique').on(
+      t.projectId,
+      t.environmentInstanceId,
     ),
     uniqueIndex('project_working_directories_project_primary_unique')
       .on(t.projectId)

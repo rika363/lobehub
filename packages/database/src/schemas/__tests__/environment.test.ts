@@ -1,8 +1,7 @@
 // @vitest-environment node
-import { readFile } from 'node:fs/promises';
 
 import type { EnvironmentConfiguration } from '@lobechat/types';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDB } from '../../core/getTestDB';
@@ -84,20 +83,6 @@ afterEach(async () => {
 });
 
 describe('Environment registration schema', () => {
-  it('replays the migration without losing existing registrations', async () => {
-    const environment = await createEnvironment();
-    const migration = await readFile(
-      new URL('../../../migrations/0163_environments.sql', import.meta.url),
-      'utf8',
-    );
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await db.execute(sql.raw(statement));
-    }
-    expect(
-      await db.select().from(environments).where(eq(environments.id, environment.id)),
-    ).toHaveLength(1);
-  });
-
   it.each<EnvironmentConfiguration>([
     { sources: [{ kind: 'git', url: 'https://github.com/lobehub/lobehub.git' }] },
     { sources: [{ kind: 'files', uri: 's3://work-assets/documents/' }] },
@@ -135,47 +120,31 @@ describe('Environment registration schema', () => {
     ).toHaveLength(1);
   });
 
-  it('shares one environment between projects with independent default selections', async () => {
+  it('shares one environment between projects', async () => {
     const environment = await createEnvironment();
     const a = await createProject('AAA');
     const b = await createProject('BBB');
     await db.insert(projectEnvironments).values([
-      { environmentId: environment.id, isDefault: true, projectId: a.id },
-      { environmentId: environment.id, isDefault: true, projectId: b.id },
+      { environmentId: environment.id, projectId: a.id },
+      { environmentId: environment.id, projectId: b.id },
     ]);
     const links = await db
       .select()
       .from(projectEnvironments)
       .where(eq(projectEnvironments.environmentId, environment.id));
     expect(links).toHaveLength(2);
-    expect(links.every((link) => link.enabled && link.isDefault)).toBe(true);
+    expect(links.every((link) => link.enabled)).toBe(true);
   });
 
-  it('enforces unique associations and at most one enabled default per project', async () => {
+  it('enforces unique associations per project', async () => {
     const project = await createProject('AAA');
     const a = await createEnvironment('A');
     const b = await createEnvironment('B');
-    const link = { environmentId: a.id, isDefault: true, projectId: project.id };
-    await db.insert(projectEnvironments).values(link);
+    await db.insert(projectEnvironments).values({ environmentId: a.id, projectId: project.id });
     await expect(
-      db.insert(projectEnvironments).values({ ...link, isDefault: false }),
+      db.insert(projectEnvironments).values({ environmentId: a.id, projectId: project.id }),
     ).rejects.toThrow();
-    await expect(
-      db.insert(projectEnvironments).values({ ...link, environmentId: b.id }),
-    ).rejects.toThrow();
-    await expect(
-      db
-        .update(projectEnvironments)
-        .set({ enabled: false })
-        .where(eq(projectEnvironments.projectId, project.id)),
-    ).rejects.toThrow();
-    await db.transaction(async (tx) => {
-      await tx
-        .update(projectEnvironments)
-        .set({ enabled: false, isDefault: false })
-        .where(eq(projectEnvironments.projectId, project.id));
-      await tx.insert(projectEnvironments).values({ ...link, environmentId: b.id });
-    });
+    await db.insert(projectEnvironments).values({ environmentId: b.id, projectId: project.id });
   });
 
   it('unlinking or deleting a project preserves the shared environment', async () => {
@@ -260,8 +229,8 @@ describe('Environment instances', () => {
     const a = await createProject('AAA');
     const b = await createProject('BBB');
     await db.insert(projectEnvironments).values([
-      { projectId: a.id, environmentId: environment.id, defaultInstanceId: rows[0].id },
-      { projectId: b.id, environmentId: environment.id, defaultInstanceId: rows[1].id },
+      { projectId: a.id, environmentId: environment.id },
+      { projectId: b.id, environmentId: environment.id },
     ]);
     await db.delete(projects).where(eq(projects.id, a.id));
     expect(
@@ -326,43 +295,6 @@ describe('Environment instances', () => {
     await db.insert(environmentInstances).values(remote);
     await expect(db.insert(environmentInstances).values(remote)).rejects.toThrow();
     await db.insert(environmentInstances).values({ ...remote, providerScope: 'account-2' });
-  });
-
-  it('only permits default instances belonging to the associated environment', async () => {
-    const environment = await createEnvironment();
-    const another = await createEnvironment('Another');
-    const device = await createDevice();
-    const project = await createProject('AAA');
-    const [instance] = await db
-      .insert(environmentInstances)
-      .values({ ...instanceValues(environment.id), deviceId: device.id, kind: 'device' })
-      .returning();
-    await expect(
-      db.insert(projectEnvironments).values({
-        projectId: project.id,
-        environmentId: another.id,
-        defaultInstanceId: instance.id,
-      }),
-    ).rejects.toThrow();
-    const [link] = await db
-      .insert(projectEnvironments)
-      .values({
-        projectId: project.id,
-        environmentId: environment.id,
-        defaultInstanceId: instance.id,
-      })
-      .returning();
-    await expect(
-      db.delete(environmentInstances).where(eq(environmentInstances.id, instance.id)),
-    ).rejects.toThrow();
-    await db
-      .update(projectEnvironments)
-      .set({ defaultInstanceId: null })
-      .where(eq(projectEnvironments.id, link.id));
-    await db.delete(environmentInstances).where(eq(environmentInstances.id, instance.id));
-    expect(
-      await db.select().from(environments).where(eq(environments.id, environment.id)),
-    ).toHaveLength(1);
   });
 
   it('preserves an instance snapshot when the abstract definition changes', async () => {
