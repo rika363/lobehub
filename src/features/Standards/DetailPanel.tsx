@@ -46,9 +46,9 @@ const styles = createStaticStyles(({ css }) => ({
 }));
 
 const SECTION_LABELS = {
-  how: 'verifiers.section.how',
-  limits: 'verifiers.section.limits',
-  why: 'verifiers.section.why',
+  how: 'rules.section.how',
+  limits: 'rules.section.limits',
+  why: 'rules.section.why',
 } as const;
 
 const READING_ORDER = ['why', 'how', 'limits'] as const;
@@ -103,14 +103,14 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
       ? {
           icon: <Icon icon={ArchiveRestoreIcon} />,
           key: 'restore',
-          label: t('verifiers.restore'),
+          label: t('rules.restore'),
           onClick: () => void run(() => expertiseService.restoreStandard(standard.id)),
         }
       : {
           danger: true,
           icon: <Icon icon={ArchiveIcon} />,
           key: 'archive',
-          label: t('verifiers.archive'),
+          label: t('rules.archive'),
           onClick: () => void run(() => expertiseService.archiveStandard(standard.id)),
         },
   ];
@@ -124,7 +124,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
           </Text>
           {isArchived && (
             <Text fontSize={12} type={'secondary'}>
-              {t('verifiers.archivedAt', {
+              {t('rules.archivedAt', {
                 time: dayjs(standard.retiredAt ?? undefined).format('YYYY-MM-DD'),
               })}
             </Text>
@@ -151,7 +151,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
 
         <Flexbox gap={12}>
           <Text fontSize={12} type={'secondary'}>
-            {t('verifiers.detail.sources')}
+            {t('rules.detail.sources')}
           </Text>
           {sources?.length ? (
             sources.map((source) => (
@@ -163,7 +163,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
                 )}
                 {source.reviewerComment && (
                   <Text fontSize={13} type={'secondary'}>
-                    {t('verifiers.reviewerSaid')}：{source.reviewerComment}
+                    {t('rules.reviewerSaid')}：{source.reviewerComment}
                   </Text>
                 )}
                 <Flexbox horizontal align={'center'} gap={8} justify={'space-between'}>
@@ -179,7 +179,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
                       target={'_blank'}
                       type={'link'}
                     >
-                      {t('verifiers.openAcceptance')}
+                      {t('rules.openAcceptance')}
                     </Button>
                   )}
                 </Flexbox>
@@ -187,7 +187,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
             ))
           ) : (
             <Text fontSize={13} type={'secondary'}>
-              {t('verifiers.detail.sourcesEmpty')}
+              {t('rules.detail.sourcesEmpty')}
             </Text>
           )}
         </Flexbox>
@@ -195,15 +195,15 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
         {Boolean(revisions?.length) && (
           <Flexbox gap={8}>
             <Text fontSize={12} type={'secondary'}>
-              {t('verifiers.detail.revisions')}
+              {t('rules.detail.revisions')}
             </Text>
             {revisions!.map((revision) => (
               <Flexbox gap={2} key={revision.id}>
                 <Text fontSize={13}>{revision.feedback}</Text>
                 <Text fontSize={12} type={'secondary'}>
                   {revision.changedBy === 'user'
-                    ? t('verifiers.revisedByYou')
-                    : t('verifiers.revisedBySystem')}
+                    ? t('rules.revisedByYou')
+                    : t('rules.revisedBySystem')}
                   {' · '}
                   {dayjs(revision.createdAt).format('YYYY-MM-DD')}
                 </Text>
@@ -220,7 +220,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
           <TextArea
             autoSize={{ maxRows: 4, minRows: 1 }}
             disabled={busy}
-            placeholder={t('verifiers.exception.placeholder')}
+            placeholder={t('rules.exception.placeholder')}
             style={{ flex: 1 }}
             value={exception}
             onChange={(e) => setException(e.target.value)}
@@ -235,7 +235,7 @@ const StandardBody = ({ onChanged, standard }: StandardBodyProps) => {
             type={'primary'}
             onClick={addException}
           >
-            {t('verifiers.exception.submit')}
+            {t('rules.exception.submit')}
           </Button>
         </Flexbox>
       )}

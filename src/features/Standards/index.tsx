@@ -25,7 +25,7 @@ const styles = createStaticStyles(({ css }) => ({
 }));
 
 /**
- * The verifiers distilled from the rounds this reviewer sent back.
+ * The rules distilled from the rounds this reviewer sent back.
  *
  * Read-only by construction: every one of these was learned from a rejection, so an "add" button
  * would invite exactly the hand-written rules this replaces. The two things a reader does here are
@@ -50,9 +50,9 @@ const Standards = () => {
           <WideScreenContainer gap={24} paddingBlock={'24px 64px'}>
             <Flexbox gap={4}>
               <Text fontSize={26} weight={700}>
-                {t('verifiers.title')}
+                {t('rules.title')}
               </Text>
-              <Text type={'secondary'}>{t('verifiers.subtitle')}</Text>
+              <Text type={'secondary'}>{t('rules.subtitle')}</Text>
             </Flexbox>
             <AsyncBoundary
               data={data}
@@ -64,13 +64,13 @@ const Standards = () => {
               empty={
                 <Empty
                   icon={ScaleIcon}
-                  title={t('verifiers.empty.title')}
+                  title={t('rules.empty.title')}
                   description={
                     <Flexbox align={'center'} gap={8}>
-                      <span>{t('verifiers.empty.description')}</span>
+                      <span>{t('rules.empty.description')}</span>
                       {Boolean(data?.backlogRounds) && (
                         <Text fontSize={13} type={'secondary'}>
-                          {t('verifiers.backlog', { count: data!.backlogRounds })}
+                          {t('rules.backlog', { count: data!.backlogRounds })}
                         </Text>
                       )}
                     </Flexbox>
@@ -93,7 +93,7 @@ const Standards = () => {
                 {archived.length > 0 && (
                   <Flexbox gap={8}>
                     <Text fontSize={13} type={'secondary'}>
-                      {t('verifiers.archivedGroup', { count: archived.length })}
+                      {t('rules.archivedGroup', { count: archived.length })}
                     </Text>
                     {archived.map((standard) => (
                       <StandardRow

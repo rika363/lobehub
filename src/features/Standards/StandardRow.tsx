@@ -59,9 +59,9 @@ const StandardRow = ({ active, onSelect, standard }: StandardRowProps) => {
         {standard.title}
       </Text>
       <Text fontSize={12} type={'secondary'}>
-        {t('verifiers.meta.rejections', { count: standard.hitCount })}
+        {t('rules.meta.rejections', { count: standard.hitCount })}
         {standard.lastHitAt &&
-          ` · ${t('verifiers.meta.lastSeen', { time: dayjs(standard.lastHitAt).fromNow() })}`}
+          ` · ${t('rules.meta.lastSeen', { time: dayjs(standard.lastHitAt).fromNow() })}`}
       </Text>
     </Block>
   );

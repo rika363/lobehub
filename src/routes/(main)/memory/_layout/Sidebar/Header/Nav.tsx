@@ -35,7 +35,7 @@ enum MemoryTabKey {
   Home = 'home',
   Identities = 'identities',
   Preferences = 'preferences',
-  Verifiers = 'verifiers',
+  Rules = 'rules',
 }
 
 const useActiveTabKey = () => {
@@ -52,7 +52,7 @@ const Nav = memo(() => {
 
   /**
    * Four groups, separated by space rather than rules: what the whole section is (home), what it
-   * requires of a delivery (verifiers), who the person is (identity, preferences), and what is
+   * requires of a delivery (rules), who the person is (identity, preferences), and what is
    * going on around them (contexts, activities). Search sits above all of them because it is an
    * action, not a destination.
    */
@@ -79,9 +79,9 @@ const Nav = memo(() => {
       [
         {
           icon: ScaleIcon,
-          key: MemoryTabKey.Verifiers,
-          title: t('tab.verifiers'),
-          url: '/memory/verifiers',
+          key: MemoryTabKey.Rules,
+          title: t('tab.rules'),
+          url: '/memory/rules',
         },
       ],
       [

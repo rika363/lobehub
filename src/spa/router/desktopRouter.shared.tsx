@@ -783,14 +783,14 @@ export const sharedMainAreaChildren: RouteObject[] = [
       },
       {
         element: dynamicElement(
-          () => import('@/routes/(main)/memory/verifiers'),
-          'Desktop > Memory > Verifiers',
+          () => import('@/routes/(main)/memory/rules'),
+          'Desktop > Memory > Rules',
         ),
         handle: {
           // Same icon the memory sidebar uses, so a desktop tab and the nav item agree.
-          meta: routeMeta({ icon: Scale, titleKey: 'navigation.memoryVerifiers' }),
+          meta: routeMeta({ icon: Scale, titleKey: 'navigation.memoryRules' }),
         },
-        path: 'verifiers',
+        path: 'rules',
       },
       {
         element: dynamicElement(
