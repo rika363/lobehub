@@ -294,3 +294,27 @@ export const postGitHubPullRequestComment = async (params: {
     return null;
   }
 };
+
+/** Rewrite a comment LobeHub posted earlier. `false` when the App cannot write there any more. */
+export const updateGitHubPullRequestComment = async (params: {
+  body: string;
+  commentId: string;
+  installationId: string;
+  repoFullName: string;
+}): Promise<boolean> => {
+  const app = getGitHubApp();
+  if (!app) return false;
+
+  try {
+    const octokit = await app.getInstallationOctokit(Number(params.installationId));
+    await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+      ...parseRepo(params.repoFullName),
+      body: params.body,
+      comment_id: Number(params.commentId),
+    });
+    return true;
+  } catch (error) {
+    log('comment %s on %s update failed: %O', params.commentId, params.repoFullName, error);
+    return false;
+  }
+};
