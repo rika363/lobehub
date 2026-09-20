@@ -17,6 +17,8 @@ import {
   expertiseLessons,
   expertiseRuns,
   topics,
+  verifyCheckResults,
+  verifyRuns,
 } from '../schemas';
 import type { LobeChatDatabase } from '../type';
 import { idGenerator } from '../utils/idGenerator';
@@ -180,6 +182,107 @@ export class ExpertiseModel {
       .where(inArray(expertiseHits.domainId, domainIds))
       .groupBy(expertiseHits.domainId, expertiseRuns.runIndex)
       .orderBy(asc(expertiseHits.domainId), asc(expertiseRuns.runIndex));
+  };
+
+  /**
+   * The reviewer's delivery standards — every always-on domain with the standards distilled into
+   * it, newest evidence first.
+   *
+   * Reads the same binding arm the distillation writes through, so what this returns is exactly
+   * what an acceptance without a project would add to. Ordered by how often the standard has been
+   * violated, because that is the reviewer's own measure of what keeps costing them a round.
+   */
+  listStandards = async () => {
+    const bound = await this.listDomainsForOwner();
+    const domainIds = bound.map(({ domain }) => domain.id);
+    if (domainIds.length === 0) return [];
+
+    const lessons = await this.db
+      .select({
+        code: expertiseLessons.code,
+        compilability: expertiseLessons.compilability,
+        createdAt: expertiseLessons.createdAt,
+        domainId: expertiseLessons.domainId,
+        exampleCount: expertiseLessons.exampleCount,
+        hitCount: expertiseLessons.hitCount,
+        hitRunCount: expertiseLessons.hitRunCount,
+        id: expertiseLessons.id,
+        lastHitAt: expertiseLessons.lastHitAt,
+        reasonKind: expertiseLessons.reasonKind,
+        reasonSource: expertiseLessons.reasonSource,
+        sections: expertiseLessons.sections,
+        title: expertiseLessons.title,
+      })
+      .from(expertiseLessons)
+      .where(
+        and(inArray(expertiseLessons.domainId, domainIds), eq(expertiseLessons.status, 'active')),
+      )
+      .orderBy(desc(expertiseLessons.hitCount), asc(expertiseLessons.code));
+
+    return bound.map(({ domain }) => ({
+      domain: {
+        domainFilter: domain.domainFilter,
+        id: domain.id,
+        outOfScope: domain.outOfScope,
+        title: domain.title,
+      },
+      standards: lessons.filter((lesson) => lesson.domainId === domain.id),
+    }));
+  };
+
+  /**
+   * The rejections one standard was distilled from, resolved back to the acceptance they were
+   * written in so the reader can reopen the round and see the frame they circled.
+   *
+   * `sourceCheckResultId` is nullable by design — a deleted acceptance leaves the standard
+   * standing and only breaks the trail — so the joins are left joins and the caller renders an
+   * unlinked row rather than dropping the evidence.
+   */
+  listLessonSources = async (lessonId: string, limit = 20) =>
+    this.db
+      .select({
+        acceptanceId: verifyRuns.acceptanceId,
+        checkTitle: verifyCheckResults.checkItemTitle,
+        createdAt: expertiseHits.createdAt,
+        example: expertiseHits.example,
+        id: expertiseHits.id,
+        reviewerComment: sql<string | null>`${verifyCheckResults.userDecisionDetail} ->> 'comment'`,
+        roundIndex: verifyRuns.roundIndex,
+      })
+      .from(expertiseHits)
+      .innerJoin(expertiseDomains, eq(expertiseDomains.id, expertiseHits.domainId))
+      .leftJoin(verifyCheckResults, eq(verifyCheckResults.id, expertiseHits.sourceCheckResultId))
+      .leftJoin(verifyRuns, eq(verifyRuns.id, verifyCheckResults.verifyRunId))
+      .where(and(eq(expertiseHits.lessonId, lessonId), this.scopeWhere()))
+      .orderBy(desc(expertiseHits.createdAt))
+      .limit(limit);
+
+  /**
+   * Rejected rounds no standard has been distilled from yet.
+   *
+   * Distillation only fires forward — a round is read when the NEXT one lands — so every round
+   * rejected before the feature existed stays untouched unless something asks for it. This is
+   * that backlog, and it is the only honest number to put on an empty standards page.
+   */
+  countUndistilledRejectionRounds = async () => {
+    const [row] = await this.db
+      .select({
+        rounds: sql<number>`count(distinct ${verifyCheckResults.verifyRunId})::int`,
+      })
+      .from(verifyCheckResults)
+      .where(
+        and(
+          eq(verifyCheckResults.userId, this.userId),
+          eq(verifyCheckResults.userDecision, 'rejected'),
+          isNotNull(verifyCheckResults.verifyRunId),
+          sql`not exists (
+            select 1 from ${expertiseRuns}
+            where ${expertiseRuns.reflectionKey} like '%:run:' || ${verifyCheckResults.verifyRunId}::text
+          )`,
+        ),
+      );
+
+    return row?.rounds ?? 0;
   };
 
   /**

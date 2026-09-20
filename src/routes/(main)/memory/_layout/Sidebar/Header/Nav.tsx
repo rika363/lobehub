@@ -7,6 +7,7 @@ import {
   CalendarClockIcon,
   HeartPulseIcon,
   LightbulbIcon,
+  ScaleIcon,
   SearchIcon,
   SignatureIcon,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ enum MemoryTabKey {
   Home = 'home',
   Identities = 'identities',
   Preferences = 'preferences',
+  Standards = 'standards',
 }
 
 const useActiveTabKey = () => {
@@ -89,6 +91,12 @@ const Nav = memo(() => {
         key: MemoryTabKey.Experiences,
         title: t('tab.experiences'),
         url: '/memory/experiences',
+      },
+      {
+        icon: ScaleIcon,
+        key: MemoryTabKey.Standards,
+        title: t('tab.standards'),
+        url: '/memory/standards',
       },
       {
         icon: CalendarClockIcon,

@@ -15,8 +15,22 @@ export type ExpertiseDomainDraft = Awaited<
   ReturnType<typeof lambdaClient.expertise.draftDomain.mutate>
 >;
 
+export type StandardsOverview = Awaited<
+  ReturnType<typeof lambdaClient.expertise.listStandards.query>
+>;
+export type StandardGroup = StandardsOverview['groups'][number];
+export type StandardItem = StandardGroup['standards'][number];
+export type StandardSource = Awaited<
+  ReturnType<typeof lambdaClient.expertise.standardSources.query>
+>[number];
+
 class ExpertiseService {
   listByAgent = async (agentId: string) => lambdaClient.expertise.listByAgent.query({ agentId });
+
+  listStandards = async () => lambdaClient.expertise.listStandards.query();
+
+  standardSources = async (lessonId: string) =>
+    lambdaClient.expertise.standardSources.query({ lessonId });
 
   getDomain = async (domainId: string) => lambdaClient.expertise.getDomain.query({ domainId });
 

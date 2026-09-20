@@ -792,6 +792,16 @@ export const sharedMainAreaChildren: RouteObject[] = [
       },
       {
         element: dynamicElement(
+          () => import('@/routes/(main)/memory/standards'),
+          'Desktop > Memory > Standards',
+        ),
+        handle: {
+          meta: routeMeta({ icon: BrainCircuit, titleKey: 'navigation.memoryStandards' }),
+        },
+        path: 'standards',
+      },
+      {
+        element: dynamicElement(
           () => import('@/routes/(main)/memory/activities'),
           'Desktop > Memory > Activities',
         ),
