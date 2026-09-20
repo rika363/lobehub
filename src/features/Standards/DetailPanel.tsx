@@ -1,12 +1,13 @@
 'use client';
 
-import { Center, Flexbox, Icon } from '@lobehub/ui';
+import { Flexbox, Icon } from '@lobehub/ui';
 import { Button, Text } from '@lobehub/ui/base-ui';
 import { createStaticStyles, cssVar } from 'antd-style';
 import dayjs from 'dayjs';
 import { ExternalLinkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import RightPanel from '@/features/RightPanel';
 import type { StandardItem } from '@/services/expertise';
 
 import { useStandardSources } from './hooks';
@@ -14,12 +15,9 @@ import { useStandardSources } from './hooks';
 const styles = createStaticStyles(({ css }) => ({
   panel: css`
     overflow-y: auto;
-    flex: none;
-
-    width: 380px;
-    padding-block: 24px;
+    flex: 1;
+    padding-block: 24px 64px;
     padding-inline: 20px;
-    border-inline-start: 1px solid ${cssVar.colorBorderSecondary};
   `,
   source: css`
     padding-block-end: 12px;
@@ -38,26 +36,13 @@ const SECTION_LABELS = {
 
 const READING_ORDER = ['why', 'how', 'limits'] as const;
 
-interface DetailPanelProps {
-  standard?: StandardItem;
-}
-
 /**
- * What one standard rests on. The sources list is the point of the panel: a standard the reviewer
- * cannot trace back to their own words is indistinguishable from one a model invented.
+ * What one standard rests on. The sources list is the point of it: a standard the reviewer cannot
+ * trace back to their own words is indistinguishable from one a model invented.
  */
-const DetailPanel = ({ standard }: DetailPanelProps) => {
+const StandardBody = ({ standard }: { standard: StandardItem }) => {
   const { t } = useTranslation('memory');
-  const { data: sources } = useStandardSources(standard?.id);
-
-  if (!standard)
-    return (
-      <Center className={styles.panel}>
-        <Text fontSize={13} type={'secondary'}>
-          {t('standards.detail.empty')}
-        </Text>
-      </Center>
-    );
+  const { data: sources } = useStandardSources(standard.id);
 
   const sectionBody = (key: string) =>
     standard.sections?.find((section) => section.key === key)?.body?.trim();
@@ -131,5 +116,21 @@ const DetailPanel = ({ standard }: DetailPanelProps) => {
     </Flexbox>
   );
 };
+
+interface DetailPanelProps {
+  onClose: () => void;
+  standard?: StandardItem;
+}
+
+/**
+ * The same draggable right panel the sibling memory surfaces use. Its visibility follows the
+ * selection rather than the global toggle: until a standard is picked the panel has nothing to
+ * show, and an empty column of dead space is not worth the width.
+ */
+const DetailPanel = ({ onClose, standard }: DetailPanelProps) => (
+  <RightPanel expand={Boolean(standard)} onExpandChange={(next) => !next && onClose()}>
+    {standard ? <StandardBody standard={standard} /> : null}
+  </RightPanel>
+);
 
 export default DetailPanel;

@@ -12,6 +12,7 @@ import {
   LayoutPanelTopIcon,
   LibraryBigIcon,
   Mic2,
+  Scale,
   Settings,
   ShapesIcon,
   SquarePlay,
@@ -796,7 +797,8 @@ export const sharedMainAreaChildren: RouteObject[] = [
           'Desktop > Memory > Standards',
         ),
         handle: {
-          meta: routeMeta({ icon: BrainCircuit, titleKey: 'navigation.memoryStandards' }),
+          // Same icon the memory sidebar uses, so a desktop tab and the nav item agree.
+          meta: routeMeta({ icon: Scale, titleKey: 'navigation.memoryStandards' }),
         },
         path: 'standards',
       },

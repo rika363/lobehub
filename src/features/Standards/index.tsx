@@ -35,9 +35,13 @@ const Standards = () => {
   const { data, error, isLoading, mutate } = useStandards();
   const [selectedId, setSelectedId] = useState<string>();
 
-  const standards = data?.groups.flatMap((group) => group.standards) ?? [];
+  const groups = (data?.groups ?? []).filter((group) => group.standards.length > 0);
+  const standards = groups.flatMap((group) => group.standards);
   const selected = standards.find((standard) => standard.id === selectedId);
   const isEmpty = !isLoading && !error && standards.length === 0;
+  // Codes restart at P-01 per domain, so once a second domain is bound the list has to say which
+  // domain a standard belongs to or the same code appears twice with nothing to tell them apart.
+  const showDomainTitles = groups.length > 1;
 
   return (
     <Flexbox height={'100%'} width={'100%'}>
@@ -76,20 +80,31 @@ const Standards = () => {
               }
               onRetry={() => mutate()}
             >
-              <Flexbox gap={8}>
-                {standards.map((standard) => (
-                  <StandardRow
-                    active={standard.id === selectedId}
-                    key={standard.id}
-                    standard={standard}
-                    onSelect={() => setSelectedId(standard.id)}
-                  />
+              <Flexbox gap={24}>
+                {groups.map((group) => (
+                  <Flexbox gap={8} key={group.domain.id}>
+                    {showDomainTitles && (
+                      <Text fontSize={13} type={'secondary'}>
+                        {group.domain.title}
+                      </Text>
+                    )}
+                    {group.standards.map((standard) => (
+                      <StandardRow
+                        active={standard.id === selectedId}
+                        key={standard.id}
+                        standard={standard}
+                        onSelect={() => setSelectedId(standard.id)}
+                      />
+                    ))}
+                  </Flexbox>
                 ))}
               </Flexbox>
             </AsyncBoundary>
           </WideScreenContainer>
         </Flexbox>
-        {standards.length > 0 && <DetailPanel standard={selected} />}
+        {standards.length > 0 && (
+          <DetailPanel standard={selected} onClose={() => setSelectedId(undefined)} />
+        )}
       </Flexbox>
     </Flexbox>
   );
