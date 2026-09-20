@@ -783,24 +783,14 @@ export const sharedMainAreaChildren: RouteObject[] = [
       },
       {
         element: dynamicElement(
-          () => import('@/routes/(main)/memory/experiences'),
-          'Desktop > Memory > Experiences',
-        ),
-        handle: {
-          meta: routeMeta({ icon: BrainCircuit, titleKey: 'navigation.memoryExperiences' }),
-        },
-        path: 'experiences',
-      },
-      {
-        element: dynamicElement(
-          () => import('@/routes/(main)/memory/standards'),
-          'Desktop > Memory > Standards',
+          () => import('@/routes/(main)/memory/verifiers'),
+          'Desktop > Memory > Verifiers',
         ),
         handle: {
           // Same icon the memory sidebar uses, so a desktop tab and the nav item agree.
-          meta: routeMeta({ icon: Scale, titleKey: 'navigation.memoryStandards' }),
+          meta: routeMeta({ icon: Scale, titleKey: 'navigation.memoryVerifiers' }),
         },
-        path: 'standards',
+        path: 'verifiers',
       },
       {
         element: dynamicElement(

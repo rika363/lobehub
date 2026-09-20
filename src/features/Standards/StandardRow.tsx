@@ -1,7 +1,7 @@
 'use client';
 
-import { Block, Flexbox } from '@lobehub/ui';
-import { Tag, Text } from '@lobehub/ui/base-ui';
+import { Block } from '@lobehub/ui';
+import { Text } from '@lobehub/ui/base-ui';
 import { createStaticStyles, cssVar } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -13,9 +13,8 @@ const styles = createStaticStyles(({ css }) => ({
     border-color: ${cssVar.colorPrimaryBorder};
     background: ${cssVar.colorFillQuaternary};
   `,
-  code: css`
-    flex: none;
-    font-family: ${cssVar.fontFamilyCode};
+  archived: css`
+    opacity: 0.6;
   `,
   row: css`
     cursor: pointer;
@@ -38,40 +37,32 @@ interface StandardRowProps {
 }
 
 /**
- * One standard as the reviewer reads it: the sentence first, then only the counts that exist
- * today. Judged/blocked columns are deliberately absent — nothing compiles a standard into a
- * criterion yet, so a "0 blocked" column would read as a failure rather than as "not built".
+ * One verifier as the reviewer reads it: the sentence, then the only counts that exist today.
+ *
+ * No leading code: `P-07` is a storage detail with no meaning to the person reading the list, and
+ * a column of identifiers in front of every sentence is the first thing the eye has to skip.
  */
 const StandardRow = ({ active, onSelect, standard }: StandardRowProps) => {
   const { t } = useTranslation('memory');
+  const isArchived = standard.status === 'retired';
 
   return (
     <Block
-      className={[styles.row, active && styles.active].filter(Boolean).join(' ')}
       gap={6}
       variant={'outlined'}
+      className={[styles.row, active && styles.active, isArchived && styles.archived]
+        .filter(Boolean)
+        .join(' ')}
       onClick={onSelect}
     >
-      <Flexbox horizontal align={'baseline'} gap={10}>
-        <Text className={styles.code} fontSize={12} type={'secondary'}>
-          {standard.code}
-        </Text>
-        <Text className={styles.title} weight={500}>
-          {standard.title}
-        </Text>
-      </Flexbox>
-      <Flexbox horizontal align={'center'} gap={8} wrap={'wrap'}>
-        {/* Only the exception is worth a tag: "mechanism" is the norm, and a badge repeated on
-            every row spends attention without telling the reader anything. */}
-        {standard.reasonKind === 'taste' && <Tag size={'small'}>{t('standards.basis.taste')}</Tag>}
-        <Text fontSize={12} type={'secondary'}>
-          {t('standards.meta.rejections', { count: standard.hitCount })}
-          {' · '}
-          {t('standards.meta.rounds', { count: standard.hitRunCount })}
-          {standard.lastHitAt &&
-            ` · ${t('standards.meta.lastSeen', { time: dayjs(standard.lastHitAt).fromNow() })}`}
-        </Text>
-      </Flexbox>
+      <Text className={styles.title} weight={500}>
+        {standard.title}
+      </Text>
+      <Text fontSize={12} type={'secondary'}>
+        {t('verifiers.meta.rejections', { count: standard.hitCount })}
+        {standard.lastHitAt &&
+          ` · ${t('verifiers.meta.lastSeen', { time: dayjs(standard.lastHitAt).fromNow() })}`}
+      </Text>
     </Block>
   );
 };

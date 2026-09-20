@@ -25,23 +25,22 @@ const styles = createStaticStyles(({ css }) => ({
 }));
 
 /**
- * The reviewer's delivery standards.
+ * The verifiers distilled from the rounds this reviewer sent back.
  *
- * Read-only on purpose: every standard here was distilled from a round the reviewer sent back, so
- * an "add a standard" button would invite exactly the hand-written rules this replaces.
+ * Read-only by construction: every one of these was learned from a rejection, so an "add" button
+ * would invite exactly the hand-written rules this replaces. The two things a reader does here are
+ * read one and retire one, and both live in the detail panel.
  */
 const Standards = () => {
   const { t } = useTranslation('memory');
   const { data, error, isLoading, mutate } = useStandards();
   const [selectedId, setSelectedId] = useState<string>();
 
-  const groups = (data?.groups ?? []).filter((group) => group.standards.length > 0);
-  const standards = groups.flatMap((group) => group.standards);
-  const selected = standards.find((standard) => standard.id === selectedId);
-  const isEmpty = !isLoading && !error && standards.length === 0;
-  // Codes restart at P-01 per domain, so once a second domain is bound the list has to say which
-  // domain a standard belongs to or the same code appears twice with nothing to tell them apart.
-  const showDomainTitles = groups.length > 1;
+  const all = (data?.groups ?? []).flatMap((group) => group.standards);
+  const live = all.filter((standard) => standard.status !== 'retired');
+  const archived = all.filter((standard) => standard.status === 'retired');
+  const selected = all.find((standard) => standard.id === selectedId);
+  const isEmpty = !isLoading && !error && all.length === 0;
 
   return (
     <Flexbox height={'100%'} width={'100%'}>
@@ -51,9 +50,9 @@ const Standards = () => {
           <WideScreenContainer gap={24} paddingBlock={'24px 64px'}>
             <Flexbox gap={4}>
               <Text fontSize={26} weight={700}>
-                {t('standards.title')}
+                {t('verifiers.title')}
               </Text>
-              <Text type={'secondary'}>{t('standards.subtitle')}</Text>
+              <Text type={'secondary'}>{t('verifiers.subtitle')}</Text>
             </Flexbox>
             <AsyncBoundary
               data={data}
@@ -65,13 +64,13 @@ const Standards = () => {
               empty={
                 <Empty
                   icon={ScaleIcon}
-                  title={t('standards.empty.title')}
+                  title={t('verifiers.empty.title')}
                   description={
                     <Flexbox align={'center'} gap={8}>
-                      <span>{t('standards.empty.description')}</span>
+                      <span>{t('verifiers.empty.description')}</span>
                       {Boolean(data?.backlogRounds) && (
                         <Text fontSize={13} type={'secondary'}>
-                          {t('standards.backlog', { count: data!.backlogRounds })}
+                          {t('verifiers.backlog', { count: data!.backlogRounds })}
                         </Text>
                       )}
                     </Flexbox>
@@ -81,14 +80,22 @@ const Standards = () => {
               onRetry={() => mutate()}
             >
               <Flexbox gap={24}>
-                {groups.map((group) => (
-                  <Flexbox gap={8} key={group.domain.id}>
-                    {showDomainTitles && (
-                      <Text fontSize={13} type={'secondary'}>
-                        {group.domain.title}
-                      </Text>
-                    )}
-                    {group.standards.map((standard) => (
+                <Flexbox gap={8}>
+                  {live.map((standard) => (
+                    <StandardRow
+                      active={standard.id === selectedId}
+                      key={standard.id}
+                      standard={standard}
+                      onSelect={() => setSelectedId(standard.id)}
+                    />
+                  ))}
+                </Flexbox>
+                {archived.length > 0 && (
+                  <Flexbox gap={8}>
+                    <Text fontSize={13} type={'secondary'}>
+                      {t('verifiers.archivedGroup', { count: archived.length })}
+                    </Text>
+                    {archived.map((standard) => (
                       <StandardRow
                         active={standard.id === selectedId}
                         key={standard.id}
@@ -97,13 +104,17 @@ const Standards = () => {
                       />
                     ))}
                   </Flexbox>
-                ))}
+                )}
               </Flexbox>
             </AsyncBoundary>
           </WideScreenContainer>
         </Flexbox>
-        {standards.length > 0 && (
-          <DetailPanel standard={selected} onClose={() => setSelectedId(undefined)} />
+        {all.length > 0 && (
+          <DetailPanel
+            standard={selected}
+            onChanged={() => void mutate()}
+            onClose={() => setSelectedId(undefined)}
+          />
         )}
       </Flexbox>
     </Flexbox>

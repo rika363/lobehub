@@ -210,12 +210,19 @@ export class ExpertiseModel {
         lastHitAt: expertiseLessons.lastHitAt,
         reasonKind: expertiseLessons.reasonKind,
         reasonSource: expertiseLessons.reasonSource,
+        retiredAt: expertiseLessons.retiredAt,
         sections: expertiseLessons.sections,
+        status: expertiseLessons.status,
         title: expertiseLessons.title,
       })
       .from(expertiseLessons)
       .where(
-        and(inArray(expertiseLessons.domainId, domainIds), eq(expertiseLessons.status, 'active')),
+        and(
+          inArray(expertiseLessons.domainId, domainIds),
+          // Retired ones are kept and returned: the page files them under an archive the reader
+          // can reopen, because "I already told it to stop using this" is itself worth seeing.
+          inArray(expertiseLessons.status, ['active', 'retired']),
+        ),
       )
       .orderBy(desc(expertiseLessons.hitCount), asc(expertiseLessons.code));
 
@@ -681,6 +688,40 @@ export class ExpertiseModel {
         .where(eq(expertiseLessons.id, lessonId));
     });
     return { id: lessonId, revision };
+  };
+
+  /**
+   * The edits a standard has been through, newest first.
+   *
+   * `feedback` is the reviewer's own sentence and `changedBy` says whether the edit came from them
+   * or from the system generalizing, which is the distinction that makes the history readable.
+   */
+  listLessonRevisions = async (lessonId: string, limit = 10) =>
+    this.db
+      .select({
+        changedBy: expertiseLessonRevisions.changedBy,
+        createdAt: expertiseLessonRevisions.createdAt,
+        feedback: expertiseLessonRevisions.feedback,
+        id: expertiseLessonRevisions.id,
+        kind: expertiseLessonRevisions.kind,
+        revision: expertiseLessonRevisions.revision,
+      })
+      .from(expertiseLessonRevisions)
+      .innerJoin(expertiseLessons, eq(expertiseLessons.id, expertiseLessonRevisions.lessonId))
+      .innerJoin(expertiseDomains, eq(expertiseDomains.id, expertiseLessons.domainId))
+      .where(and(eq(expertiseLessonRevisions.lessonId, lessonId), this.scopeWhere()))
+      .orderBy(desc(expertiseLessonRevisions.revision))
+      .limit(limit);
+
+  /** Brings a retired standard back into practice. */
+  restoreLesson = async (lessonId: string) => {
+    const lesson = await this.findLesson(lessonId);
+    if (!lesson) return null;
+    await this.db
+      .update(expertiseLessons)
+      .set({ retiredAt: null, status: 'active', updatedAt: new Date() })
+      .where(eq(expertiseLessons.id, lessonId));
+    return { id: lessonId };
   };
 
   /** Retires a lesson so it stops being practiced; the record and its evidence are kept. */

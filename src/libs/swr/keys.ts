@@ -1104,6 +1104,10 @@ export const expertiseKeys = {
   ]),
   lesson: def('expertise:lesson', (lessonId: string) => ['expertise:lesson', lessonId]),
   overview: def('expertise:overview', (agentId: string) => ['expertise:overview', agentId]),
+  standardRevisions: def('expertise:standardRevisions', (lessonId: string) => [
+    'expertise:standardRevisions',
+    lessonId,
+  ]),
   standardSources: def('expertise:standardSources', (lessonId: string) => [
     'expertise:standardSources',
     lessonId,

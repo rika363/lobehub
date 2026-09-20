@@ -239,6 +239,16 @@ export const expertiseRouter = router({
     .input(z.object({ lessonId: z.string() }))
     .query(async ({ ctx, input }) => ctx.expertiseModel.listLessonSources(input.lessonId)),
 
+  /** The edits one standard has been through, so a reader can see who narrowed it and when. */
+  standardRevisions: expertiseProcedure
+    .input(z.object({ lessonId: z.string() }))
+    .query(async ({ ctx, input }) => ctx.expertiseModel.listLessonRevisions(input.lessonId)),
+
+  /** Puts an archived standard back into practice. */
+  restoreLesson: expertiseWriteProcedure
+    .input(z.object({ lessonId: z.string() }))
+    .mutation(async ({ ctx, input }) => ctx.expertiseModel.restoreLesson(input.lessonId)),
+
   /** Step 1 of creation: interpret the brief into an editable draft. Nothing is persisted. */
   draftDomain: expertiseWriteProcedure
     .input(

@@ -23,6 +23,9 @@ export type StandardItem = StandardGroup['standards'][number];
 export type StandardSource = Awaited<
   ReturnType<typeof lambdaClient.expertise.standardSources.query>
 >[number];
+export type StandardRevision = Awaited<
+  ReturnType<typeof lambdaClient.expertise.standardRevisions.query>
+>[number];
 
 class ExpertiseService {
   listByAgent = async (agentId: string) => lambdaClient.expertise.listByAgent.query({ agentId });
@@ -31,6 +34,18 @@ class ExpertiseService {
 
   standardSources = async (lessonId: string) =>
     lambdaClient.expertise.standardSources.query({ lessonId });
+
+  standardRevisions = async (lessonId: string) =>
+    lambdaClient.expertise.standardRevisions.query({ lessonId });
+
+  reviseStandard = async (lessonId: string, text: string) =>
+    lambdaClient.expertise.reviseLesson.mutate({ lessonId, text });
+
+  archiveStandard = async (lessonId: string) =>
+    lambdaClient.expertise.retireLesson.mutate({ lessonId });
+
+  restoreStandard = async (lessonId: string) =>
+    lambdaClient.expertise.restoreLesson.mutate({ lessonId });
 
   getDomain = async (domainId: string) => lambdaClient.expertise.getDomain.query({ domainId });
 
