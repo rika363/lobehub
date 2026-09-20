@@ -268,3 +268,29 @@ export const fetchGitHubReviewFeedback = async (params: {
     return [];
   }
 };
+
+/**
+ * Post a comment on a pull request (GitHub keeps PR comments on the issues
+ * endpoint) and return its id, or `null` when the App cannot write there.
+ */
+export const postGitHubPullRequestComment = async (params: {
+  body: string;
+  installationId: string;
+  number: number;
+  repoFullName: string;
+}): Promise<string | null> => {
+  const app = getGitHubApp();
+  if (!app) return null;
+
+  try {
+    const octokit = await app.getInstallationOctokit(Number(params.installationId));
+    const { data } = await octokit.request(
+      'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
+      { ...parseRepo(params.repoFullName), body: params.body, issue_number: params.number },
+    );
+    return String(data.id);
+  } catch (error) {
+    log('comment on %s#%d failed: %O', params.repoFullName, params.number, error);
+    return null;
+  }
+};

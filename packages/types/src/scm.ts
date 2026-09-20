@@ -95,8 +95,12 @@ export interface ScmChangeRequestMetadata {
   [key: string]: unknown;
   /** Acceptance links parsed out of the change request body. */
   acceptanceIdsFromBody?: string[];
+  /** Provider id of the LobeHub comment posted on this change request, once posted. */
+  lobehubCommentId?: string;
   /** Provider's mergeability verdict, when it exposes one (`MERGEABLE`, `CONFLICTING`, …). */
   mergeable?: string;
+  /** Whether the repository is private, when the provider said. Drives the comment switches. */
+  repoPrivate?: boolean;
 }
 
 /** Processing state of one inbound webhook delivery. */
