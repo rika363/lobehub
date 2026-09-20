@@ -386,7 +386,7 @@ const DocumentBody = memo(() => {
         <FooterActions
           agentId={activeAgentId}
           documentId={documentId}
-          title={documentMeta?.filename ?? documentMeta?.title ?? undefined}
+          title={documentMeta?.title ?? documentMeta?.filename ?? undefined}
         />
       )}
     </Flexbox>
