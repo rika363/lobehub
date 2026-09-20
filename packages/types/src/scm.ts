@@ -95,6 +95,8 @@ export interface ScmChangeRequestMetadata {
   [key: string]: unknown;
   /** Acceptance links parsed out of the change request body. */
   acceptanceIdsFromBody?: string[];
+  /** The most recent time the agent was notified about this change request, and why. */
+  lastWake?: { at: string; reason: string };
   /** Provider id of the LobeHub comment posted on this change request, once posted. */
   lobehubCommentId?: string;
   /** Provider's mergeability verdict, when it exposes one (`MERGEABLE`, `CONFLICTING`, …). */

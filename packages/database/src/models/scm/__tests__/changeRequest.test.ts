@@ -197,11 +197,19 @@ describe('ScmChangeRequestModel', () => {
     expect(moved.topicId).toBeNull();
   });
 
-  it('counts wakes', async () => {
-    const row = await ScmChangeRequestModel.upsert(serverDB, snapshot);
+  it('counts wakes and remembers the last reason', async () => {
+    const row = await ScmChangeRequestModel.upsert(serverDB, {
+      ...snapshot,
+      metadata: { repoPrivate: true },
+    });
     expect(await ScmChangeRequestModel.recordWake(serverDB, row.id)).toBe(1);
-    expect(await ScmChangeRequestModel.recordWake(serverDB, row.id)).toBe(2);
-    expect((await ScmChangeRequestModel.findById(serverDB, row.id))?.lastWakeAt).not.toBeNull();
+    expect(await ScmChangeRequestModel.recordWake(serverDB, row.id, 'ci_failed')).toBe(2);
+    const after = await ScmChangeRequestModel.findById(serverDB, row.id);
+    expect(after?.lastWakeAt).not.toBeNull();
+    expect(after?.metadata).toMatchObject({
+      lastWake: { at: expect.any(String), reason: 'ci_failed' },
+      repoPrivate: true,
+    });
   });
 });
 
