@@ -1,9 +1,18 @@
 // @vitest-environment node
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDB } from '../../core/getTestDB';
-import { agents, devices, projects, projectWorkingDirectories, topics, users } from '..';
+import {
+  agents,
+  devices,
+  environmentInstances,
+  environments,
+  projects,
+  projectWorkingDirectories,
+  topics,
+  users,
+} from '..';
 
 const serverDB = await getTestDB();
 const userId = 'project-working-directory-schema-user';
@@ -26,8 +35,23 @@ const createProjectFixture = async () => {
     .insert(devices)
     .values({ deviceId: 'project-working-directory-device', identitySource: 'fallback', userId })
     .returning();
+  const [environment] = await serverDB
+    .insert(environments)
+    .values({ configuration: {}, name: 'lobehub', userId })
+    .returning();
+  const [instance] = await serverDB
+    .insert(environmentInstances)
+    .values({
+      configurationSnapshot: {},
+      deviceId: device.id,
+      environmentId: environment.id,
+      kind: 'device',
+      name: 'lobehub',
+      workingDirectory: '/Users/name/Code/lobehub',
+    })
+    .returning();
 
-  return { coordinator, device, project };
+  return { coordinator, device, environment, instance, project };
 };
 
 beforeEach(async () => {
@@ -35,60 +59,82 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  await serverDB.delete(projectWorkingDirectories);
+  await serverDB
+    .delete(environmentInstances)
+    .where(
+      inArray(
+        environmentInstances.environmentId,
+        serverDB
+          .select({ id: environments.id })
+          .from(environments)
+          .where(eq(environments.userId, userId)),
+      ),
+    );
+  await serverDB.delete(environments).where(eq(environments.userId, userId));
   await serverDB.delete(users).where(eq(users.id, userId));
 });
 
 describe('Project working directory schema', () => {
-  it('persists a device-backed project directory with safe defaults', async () => {
-    const { device, project } = await createProjectFixture();
+  it('persists an instance-backed project directory with safe defaults', async () => {
+    const { instance, project } = await createProjectFixture();
     const [directory] = await serverDB
       .insert(projectWorkingDirectories)
       .values({
-        deviceId: device.id,
+        environmentInstanceId: instance.id,
         isPrimary: true,
         name: 'lobehub',
-        path: '/Users/name/Code/lobehub',
         projectId: project.id,
       })
       .returning();
 
     expect(directory).toMatchObject({
-      deviceId: device.id,
+      environmentInstanceId: instance.id,
       isPrimary: true,
       permission: 'readWrite',
       projectId: project.id,
     });
   });
 
-  it('allows only one primary directory and one binding per project, device, and path', async () => {
-    const { device, project } = await createProjectFixture();
+  it('allows only one primary directory and one binding per project and instance', async () => {
+    const { device, environment, instance, project } = await createProjectFixture();
     const values = {
-      deviceId: device.id,
+      environmentInstanceId: instance.id,
       isPrimary: true,
       name: 'lobehub',
-      path: '/Users/name/Code/lobehub',
       projectId: project.id,
     };
 
     await serverDB.insert(projectWorkingDirectories).values(values);
     await expect(serverDB.insert(projectWorkingDirectories).values(values)).rejects.toThrow();
+
+    const [secondInstance] = await serverDB
+      .insert(environmentInstances)
+      .values({
+        configurationSnapshot: {},
+        deviceId: device.id,
+        environmentId: environment.id,
+        kind: 'device',
+        name: 'lobehub-cloud',
+        workingDirectory: '/Users/name/Code/lobehub-cloud',
+      })
+      .returning();
     await expect(
       serverDB.insert(projectWorkingDirectories).values({
         ...values,
+        environmentInstanceId: secondInstance.id,
         name: 'lobehub-cloud',
-        path: '/Users/name/Code/lobehub-cloud',
       }),
     ).rejects.toThrow();
   });
 
   it('keeps project membership when a topic directory is unbound', async () => {
-    const { coordinator, device, project } = await createProjectFixture();
+    const { coordinator, instance, project } = await createProjectFixture();
     const [directory] = await serverDB
       .insert(projectWorkingDirectories)
       .values({
-        deviceId: device.id,
+        environmentInstanceId: instance.id,
         name: 'lobehub',
-        path: '/Users/name/Code/lobehub',
         projectId: project.id,
       })
       .returning();
@@ -114,24 +160,12 @@ describe('Project working directory schema', () => {
     });
   });
 
-  it('retains a repairable directory record when its device is removed', async () => {
-    const { device, project } = await createProjectFixture();
-    const [directory] = await serverDB
-      .insert(projectWorkingDirectories)
-      .values({
-        deviceId: device.id,
-        name: 'lobehub',
-        path: '/Users/name/Code/lobehub',
-        projectId: project.id,
-      })
-      .returning();
+  it('blocks removing a device or environment while an instance references it', async () => {
+    const { device, environment } = await createProjectFixture();
 
-    await serverDB.delete(devices).where(eq(devices.id, device.id));
-
-    const [persisted] = await serverDB
-      .select()
-      .from(projectWorkingDirectories)
-      .where(eq(projectWorkingDirectories.id, directory.id));
-    expect(persisted).toMatchObject({ deviceId: null, path: '/Users/name/Code/lobehub' });
+    await expect(serverDB.delete(devices).where(eq(devices.id, device.id))).rejects.toThrow();
+    await expect(
+      serverDB.delete(environments).where(eq(environments.id, environment.id)),
+    ).rejects.toThrow();
   });
 });

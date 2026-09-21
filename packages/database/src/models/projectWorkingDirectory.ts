@@ -2,7 +2,7 @@ import nodePath from 'node:path';
 
 import type { ChatTopicMetadata, EnvironmentConfiguration } from '@lobechat/types';
 import { getWorkingDirSourcePath } from '@lobechat/types';
-import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 
 import {
   agents,
@@ -261,28 +261,23 @@ export class ProjectWorkingDirectoryModel {
         .where(
           and(
             eq(projectWorkingDirectories.projectId, input.projectId),
-            eq(projectWorkingDirectories.deviceId, device.id),
-            eq(projectWorkingDirectories.path, path),
+            eq(projectWorkingDirectories.environmentInstanceId, instance.id),
           ),
         );
-      const [directory] = prior
-        ? await tx
-            .update(projectWorkingDirectories)
-            .set({ environmentInstanceId: instance.id })
-            .where(eq(projectWorkingDirectories.id, prior.id))
-            .returning()
-        : await tx
+      const directory =
+        prior ??
+        (
+          await tx
             .insert(projectWorkingDirectories)
             .values({
               addedByUserId: this.userId,
-              deviceId: device.id,
               environmentInstanceId: instance.id,
               name: input.name.trim(),
-              path,
               projectId: input.projectId,
               workspaceId: this.workspaceId,
             })
-            .returning();
+            .returning()
+        )[0];
       if (input.topicIds?.length) {
         if (!input.agentId) throw new Error('Agent is required when filing conversations');
         const selected = await tx
@@ -348,41 +343,29 @@ export class ProjectWorkingDirectoryModel {
         configuration: environments.configuration,
         deviceId: devices.deviceId,
         deviceName: devices.friendlyName,
-        path: sql<string>`coalesce(${environmentInstances.workingDirectory}, ${projectWorkingDirectories.path})`,
+        path: environmentInstances.workingDirectory,
         permission: projectWorkingDirectories.permission,
       })
       .from(projectWorkingDirectories)
       .innerJoin(projects, eq(projects.id, projectWorkingDirectories.projectId))
-      .leftJoin(
+      .innerJoin(
         environmentInstances,
         eq(environmentInstances.id, projectWorkingDirectories.environmentInstanceId),
       )
-      .leftJoin(environments, eq(environments.id, environmentInstances.environmentId))
-      .leftJoin(
+      .innerJoin(environments, eq(environments.id, environmentInstances.environmentId))
+      .innerJoin(
         projectEnvironments,
         and(
           eq(projectEnvironments.projectId, projects.id),
           eq(projectEnvironments.environmentId, environments.id),
         ),
       )
-      .innerJoin(
-        devices,
-        eq(
-          devices.id,
-          sql`coalesce(${environmentInstances.deviceId}, ${projectWorkingDirectories.deviceId})`,
-        ),
-      )
+      .innerJoin(devices, eq(devices.id, environmentInstances.deviceId))
       .where(
         and(
           buildWorkspaceWhere(this.scope(), projects),
           isNull(projects.deletedAt),
-          or(
-            isNull(projectWorkingDirectories.environmentInstanceId),
-            and(
-              buildWorkspaceWhere(this.scope(), environments),
-              eq(projectEnvironments.projectId, projects.id),
-            ),
-          ),
+          buildWorkspaceWhere(this.scope(), environments),
           buildWorkspaceWhere(this.scope(), devices),
           projectId ? eq(projects.id, projectId) : undefined,
         ),
@@ -393,8 +376,6 @@ export class ProjectWorkingDirectoryModel {
   async resolve(id: string, projectId?: string) {
     const row = (await this.list(projectId)).find((item) => item.id === id);
     if (!row) throw new Error('Project directory not found or access denied');
-    if (!row.instanceId || !row.environmentId)
-      throw new Error('Link this directory to an environment before starting work');
     const [state] = await this.db
       .select({
         instanceEnabled: environmentInstances.enabled,
@@ -414,7 +395,7 @@ export class ProjectWorkingDirectoryModel {
     if (!state?.instanceEnabled || !state.environmentEnabled || !state.linked)
       throw new Error('Project environment is disabled');
     if (row.permission !== 'readWrite') throw new Error('This directory is read-only');
-    return { ...row, instanceId: row.instanceId, environmentId: row.environmentId };
+    return row;
   }
 
   async startTopic(directoryId: string, agentId: string, title: string) {

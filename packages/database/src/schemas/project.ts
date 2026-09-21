@@ -21,7 +21,6 @@ import { idGenerator, randomSlug } from '../utils/idGenerator';
 import { softDeleteColumns, timestamps, timestamptz } from './_helpers';
 import { agents } from './agent';
 import { chatGroups } from './chatGroup';
-import { devices } from './device';
 import { environmentInstances } from './environmentInstance';
 import { knowledgeBases } from './file';
 import { users } from './user';
@@ -100,8 +99,8 @@ export const projects = pgTable(
 );
 
 /**
- * A device-backed directory made available to a project as an execution context.
- * The directory remains device-owned; removing this binding never deletes local files.
+ * A project's selection of an environment instance as an execution context.
+ * The instance owns the physical location; removing this binding never deletes local files.
  */
 export const projectWorkingDirectories = pgTable(
   'project_working_directories',
@@ -110,21 +109,16 @@ export const projectWorkingDirectories = pgTable(
     projectId: text('project_id')
       .references(() => projects.id, { onDelete: 'cascade' })
       .notNull(),
-    /** Canonical execution location once bound; legacy rows carry only device/path until the backfill runs. */
-    environmentInstanceId: uuid('environment_instance_id').references(
-      () => environmentInstances.id,
-      { onDelete: 'restrict' },
-    ),
-    /** @deprecated Read from the environment instance; dropped by the contract migration after the backfill. */
-    deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'set null' }),
+    /** Canonical execution location; device and path are read from the instance. */
+    environmentInstanceId: uuid('environment_instance_id')
+      .references(() => environmentInstances.id, { onDelete: 'restrict' })
+      .notNull(),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
     addedByUserId: text('added_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
 
-    /** @deprecated Read from the environment instance; dropped by the contract migration after the backfill. */
-    path: text('path').notNull(),
-    /** User-facing label; defaults to the final path segment at the application boundary. */
+    /** Project-local label; defaults to the final path segment at the application boundary. */
     name: varchar('name', { length: 255 }).notNull(),
     permission: text('permission')
       .$type<ProjectWorkingDirectoryPermission>()
@@ -136,11 +130,6 @@ export const projectWorkingDirectories = pgTable(
     ...timestamps,
   },
   (t) => [
-    uniqueIndex('project_working_directories_project_device_path_unique').on(
-      t.projectId,
-      t.deviceId,
-      t.path,
-    ),
     uniqueIndex('project_working_directories_project_instance_unique').on(
       t.projectId,
       t.environmentInstanceId,
@@ -149,9 +138,7 @@ export const projectWorkingDirectories = pgTable(
       .on(t.projectId)
       .where(sql`${t.isPrimary} = true`),
     index('project_working_directories_project_sort_order_idx').on(t.projectId, t.sortOrder),
-    index('project_working_directories_device_id_idx').on(t.deviceId),
     index('project_working_directories_workspace_id_idx').on(t.workspaceId),
-    check('project_working_directories_path_not_empty', sql`length(btrim(${t.path})) > 0`),
     check('project_working_directories_name_not_empty', sql`length(btrim(${t.name})) > 0`),
   ],
 );

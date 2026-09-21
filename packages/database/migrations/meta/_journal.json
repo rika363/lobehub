@@ -1190,6 +1190,13 @@
       "when": 1789966378648,
       "tag": "0169_project_directory_environment_expand",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1789966431216,
+      "tag": "0170_project_directory_environment_contract",
+      "breakpoints": true
     }
   ],
   "version": "6"

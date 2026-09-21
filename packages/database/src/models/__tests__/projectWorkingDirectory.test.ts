@@ -70,28 +70,23 @@ describe('project directory bindings', () => {
       projectId: base.projectId,
     });
   });
-  it('keeps legacy directories visible and upgrades their binding without losing topics', async () => {
-    const [device] = await db.select().from(devices);
-    const [legacy] = await db
-      .insert(projectWorkingDirectories)
-      .values({
-        projectId: base.projectId,
-        deviceId: device.id,
-        path: base.path,
-        name: base.name,
-        addedByUserId: userId,
-      })
-      .returning();
-    expect((await model.list())[0]).toMatchObject({
-      id: legacy.id,
-      instanceId: null,
-      path: base.path,
+  it('reuses the same instance across projects without duplicating environment data', async () => {
+    await db.insert(agents).values({ id: 'second-coordinator', userId });
+    await db.insert(projects).values({
+      coordinatorAgentId: 'second-coordinator',
+      id: 'second-project',
+      identifier: 'SEC',
+      name: 'Second project',
+      userId,
     });
-    await expect(model.resolve(legacy.id)).rejects.toThrow('Link this directory');
-    expect(await model.listTopics(legacy.id)).toEqual([]);
-    const upgraded = await model.bind(base);
-    expect(upgraded.id).toBe(legacy.id);
-    expect((await model.resolve(legacy.id)).instanceId).toBeTruthy();
+    const first = await model.bind(base);
+    const second = await model.bind({ ...base, projectId: 'second-project' });
+    expect(second.id).not.toBe(first.id);
+    expect(second.environmentInstanceId).toBe(first.environmentInstanceId);
+    expect(await db.select().from(environmentInstances)).toHaveLength(1);
+    expect(await db.select().from(environments)).toHaveLength(1);
+    expect(await model.list()).toHaveLength(2);
+    expect((await model.resolve(second.id)).path).toBe(base.path);
   });
   it('allows reading conversations in a read-only directory but blocks execution', async () => {
     const directory = await model.bind(base);
