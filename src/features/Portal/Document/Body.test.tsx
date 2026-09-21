@@ -120,6 +120,7 @@ const mockDocumentState = vi.hoisted(() => ({
     documents: {
       'document-1': {},
     },
+    internal_dispatchDocument: vi.fn(),
     performSave: vi.fn(),
     updateSkillFrontmatter: vi.fn(),
   },
@@ -135,6 +136,7 @@ describe('DocumentBody', () => {
     mockChatState.current.portalStack[0].agentDocumentId = 'agent-document-1';
     mockDocumentMeta.current = { content: '', filename: 'doc.md' };
     mockUpdateDocument.mockClear();
+    mockDocumentState.current.internal_dispatchDocument.mockClear();
     vi.useFakeTimers();
   });
 
@@ -259,5 +261,34 @@ describe('DocumentBody', () => {
     await Promise.resolve();
 
     expect(mockUpdateDocument).not.toHaveBeenCalled();
+  });
+
+  it('mirrors the live highlight buffer into the document store for export', () => {
+    mockDocumentMeta.current = { content: 'before', filename: 'config.json' };
+
+    render(<DocumentBody />);
+    const editor = screen.getByTestId('highlight-editor');
+
+    // Initial mount mirrors the persisted content into the store record
+    // (the mock record already exists, so this is an update).
+    expect(mockDocumentState.current.internal_dispatchDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'document-1',
+        type: 'updateDocument',
+        value: { content: 'before' },
+      }),
+    );
+
+    fireEvent.change(editor, { target: { value: 'after' } });
+
+    // The typed buffer becomes the store content immediately, so a concurrent
+    // Export downloads the text on screen instead of the last saved copy.
+    expect(mockDocumentState.current.internal_dispatchDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'document-1',
+        type: 'updateDocument',
+        value: { content: 'after' },
+      }),
+    );
   });
 });
